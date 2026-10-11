@@ -16,6 +16,10 @@ struct Args {
     destination: String,
     #[arg(short, long)]
     limit: Option<u64>,
+    #[arg(short, long)]
+    mailbox: String,
+    #[arg(short, long)]
+    remove: bool,
 }
 
 const DEFAULT_IMAPS_PORT: u16 = 993;
@@ -42,8 +46,8 @@ fn main() -> Result<(), String> {
                     }
                     // Select the inbox
                     session
-                        .select("INBOX")
-                        .map_err(|error| format!("failed to select INBOX: {error}"))?;
+                        .select(&args.mailbox)
+                        .map_err(|error| format!("failed to select {}: {error}", args.mailbox))?;
 
                     fs::create_dir_all(&args.destination)
                         .map_err(|error| format!("failed to create destination dir: {error}"))?;
@@ -71,7 +75,7 @@ fn main() -> Result<(), String> {
                                                     body,
                                                 ) {
                                                     eprintln!("{error}");
-                                                } else {
+                                                } else if args.remove {
                                                     // Mark message as deleted
                                                     if let Err(error) = session.store(
                                                         position.to_string(),
@@ -114,9 +118,11 @@ fn main() -> Result<(), String> {
                         };
                     }
 
-                    session
-                        .expunge()
-                        .map_err(|error| format!("failed to expunge mailbox: {error}"))?;
+                    if args.remove {
+                        session
+                            .expunge()
+                            .map_err(|error| format!("failed to expunge mailbox: {error}"))?;
+                    }
                 }
                 Err(error) => eprintln!("failed to open session: {error:?}"),
             }
